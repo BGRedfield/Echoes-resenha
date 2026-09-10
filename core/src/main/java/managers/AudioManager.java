@@ -4,7 +4,6 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.files.FileHandle;
-import com.badlogic.gdx.utils.GdxRuntimeException;
 
 /**
  * Centraliza os efeitos e a trilha do ECHOES.
@@ -50,6 +49,10 @@ public class AudioManager {
 
     public void playClick() {
         if (click != null) click.play(1.0f);
+    }
+
+    public void playStep() {
+        if (click != null) click.play(0.20f);
     }
 
     public void playCollect() {
