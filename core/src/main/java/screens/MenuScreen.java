@@ -1,7 +1,6 @@
 package screens;
 
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.Color;
@@ -9,6 +8,7 @@ import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.math.Rectangle;
 import com.orion.echoes.mars.EchoesMarsGame;
 import managers.AssetManager;
 import managers.SaveManager;
@@ -20,6 +20,10 @@ public class MenuScreen implements Screen {
     private final BitmapFont font;
     private final OrthographicCamera camera = new OrthographicCamera();
     private final SaveManager saveManager = new SaveManager();
+
+    private final Rectangle newMissionButton = new Rectangle(420f, 280f, 440f, 80f);
+    private final Rectangle continueButton = new Rectangle(455f, 205f, 370f, 60f);
+    private final Rectangle exitButton = new Rectangle(520f, 65f, 240f, 60f);
 
     public MenuScreen(EchoesMarsGame game, SpriteBatch batch, AssetManager assets) {
         this.game = game;
@@ -66,12 +70,37 @@ public class MenuScreen implements Screen {
         font.getData().setScale(1f);
         batch.end();
 
+        handleInput();
+    }
+
+    private void handleInput() {
         if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) {
             game.setScreen(new MissionScreen(game, batch, assets));
-        } else if (saveManager.hasSave() && Gdx.input.isKeyJustPressed(Input.Keys.C)) {
+            return;
+        }
+
+        if (saveManager.hasSave() && Gdx.input.isKeyJustPressed(Input.Keys.C)) {
             openSavedPhase();
-        } else if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+            return;
+        }
+
+        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
             Gdx.app.exit();
+            return;
+        }
+
+        if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
+            float x = Gdx.input.getX() * (1280f / Gdx.graphics.getWidth());
+            float y = (Gdx.graphics.getHeight() - Gdx.input.getY())
+                * (720f / Gdx.graphics.getHeight());
+
+            if (newMissionButton.contains(x, y)) {
+                game.setScreen(new MissionScreen(game, batch, assets));
+            } else if (saveManager.hasSave() && continueButton.contains(x, y)) {
+                openSavedPhase();
+            } else if (exitButton.contains(x, y)) {
+                Gdx.app.exit();
+            }
         }
     }
 
