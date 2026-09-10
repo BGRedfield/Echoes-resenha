@@ -61,13 +61,13 @@ public class EchoesMarsGame extends Game {
 
     private void startMusicFor(Screen screen) {
         if (screen instanceof MenuScreen || screen instanceof MissionScreen) {
-            audio.playMusic("music/tema_menu.ogg", 0.35f);
+            audio.playMusic("music/tema_menu.wav", 0.22f);
         } else if (screen instanceof LunarScreen) {
-            audio.playMusic("music/tema_lua.ogg", 0.35f);
+            audio.playMusic("music/tema_lua.wav", 0.22f);
         } else if (screen instanceof GameScreen) {
-            audio.playMusic("music/tema_marte.ogg", 0.35f);
+            audio.playMusic("music/tema_marte.wav", 0.22f);
         } else if (screen instanceof TitanScreen) {
-            audio.playMusic("music/tema_tita.ogg", 0.35f);
+            audio.playMusic("music/tema_tita.wav", 0.22f);
         }
     }
 
@@ -83,7 +83,8 @@ public class EchoesMarsGame extends Game {
         }
 
         if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER)
-            || Gdx.input.isKeyJustPressed(Input.Keys.C)) {
+            || Gdx.input.isKeyJustPressed(Input.Keys.C)
+            || Gdx.input.isKeyJustPressed(Input.Keys.E)) {
             audio.playClick();
         }
 
@@ -100,7 +101,7 @@ public class EchoesMarsGame extends Game {
             if (moving) {
                 stepTimer -= delta;
                 if (stepTimer <= 0f) {
-                    audio.playCollect();
+                    audio.playStep();
                     stepTimer = 0.45f;
                 }
             } else {
