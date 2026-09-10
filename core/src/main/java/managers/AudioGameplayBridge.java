@@ -1,20 +1,25 @@
 package managers;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.math.Rectangle;
 
 import java.lang.reflect.Field;
 
+import screens.GameScreen;
+import screens.TitanScreen;
+import screens.lua.LunarScreen;
+
 /**
- * Liga eventos de gameplay ao AudioManager sem duplicar código dentro de cada Screen.
- * Usa os campos de estado já existentes nas fases Lua, Marte e Titã.
+ * Liga os eventos de gameplay ao AudioManager sem duplicar o codigo nas Screens.
  */
 public class AudioGameplayBridge {
 
     private static final float PORTAL_RANGE = 650f;
     private static final float ALERT_ON = 25f;
     private static final float ALERT_OFF = 32f;
+    private static final float STEP_INTERVAL = 0.32f;
 
     private final AudioManager audio;
 
@@ -23,6 +28,7 @@ public class AudioGameplayBridge {
     private boolean lastFoodCollected;
     private boolean lastIceCollected;
     private boolean alertActive;
+    private float stepTimer = 0f;
 
     public AudioGameplayBridge(AudioManager audio) {
         this.audio = audio;
@@ -33,15 +39,18 @@ public class AudioGameplayBridge {
             audio.stopPortal();
             stopAlert();
             lastScreen = null;
+            stepTimer = 0f;
             return;
         }
 
         if (screen != lastScreen) {
             resetCollectionState(screen);
             lastScreen = screen;
+            stepTimer = 0f;
         }
 
         detectCollection(screen);
+        updateSteps(screen);
         updatePortal(screen);
         updateAlert(screen);
     }
@@ -70,6 +79,37 @@ public class AudioGameplayBridge {
         lastOxygenCollected = oxygenCollected;
         lastFoodCollected = foodCollected;
         lastIceCollected = iceCollected;
+    }
+
+    private void updateSteps(Screen screen) {
+        boolean gameplay = screen instanceof LunarScreen
+            || screen instanceof GameScreen
+            || screen instanceof TitanScreen;
+
+        if (!gameplay) {
+            stepTimer = 0f;
+            return;
+        }
+
+        boolean moving = Gdx.input.isKeyPressed(Input.Keys.W)
+            || Gdx.input.isKeyPressed(Input.Keys.A)
+            || Gdx.input.isKeyPressed(Input.Keys.S)
+            || Gdx.input.isKeyPressed(Input.Keys.D)
+            || Gdx.input.isKeyPressed(Input.Keys.UP)
+            || Gdx.input.isKeyPressed(Input.Keys.DOWN)
+            || Gdx.input.isKeyPressed(Input.Keys.LEFT)
+            || Gdx.input.isKeyPressed(Input.Keys.RIGHT);
+
+        if (!moving) {
+            stepTimer = 0f;
+            return;
+        }
+
+        stepTimer -= Gdx.graphics.getDeltaTime();
+        if (stepTimer <= 0f) {
+            audio.playStep();
+            stepTimer = STEP_INTERVAL;
+        }
     }
 
     private void updatePortal(Screen screen) {
@@ -103,8 +143,8 @@ public class AudioGameplayBridge {
         volume = Math.max(0.05f, Math.min(1f, volume));
         audio.playPortalProximity(volume);
 
-        boolean enter = Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ENTER);
-        boolean e = Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.E);
+        boolean enter = Gdx.input.isKeyJustPressed(Input.Keys.ENTER);
+        boolean e = Gdx.input.isKeyJustPressed(Input.Keys.E);
         if ((enter || e) && player.overlaps(portal)) {
             audio.stopPortal();
         }
@@ -124,12 +164,8 @@ public class AudioGameplayBridge {
     }
 
     private void stopAlert() {
-        if (alertActive) {
-            audio.stopAlertLoop();
-            alertActive = false;
-        } else {
-            audio.stopAlertLoop();
-        }
+        audio.stopAlertLoop();
+        alertActive = false;
     }
 
     private boolean readBoolean(Object target, String fieldName) {
