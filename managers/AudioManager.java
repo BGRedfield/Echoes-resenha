@@ -8,20 +8,22 @@ import com.badlogic.gdx.utils.GdxRuntimeException;
 
 /**
  * Audio centralizado do ECHOES.
- * Arquivos de audio ausentes ou invalidos nao derrubam o jogo.
+ * Arquivos ausentes ou invalidos nao derrubam o jogo.
  */
 public class AudioManager {
 
     private Music currentMusic;
 
     private Sound click;
+    private Sound step;
     private Sound collect;
     private Sound portal;
     private Sound alert;
 
     public void load() {
         click = loadSound("sounds/click.wav");
-        collect = loadSound("sounds/coleta.wav");
+        step = loadSound("sounds/step.wav");
+        collect = loadSound("sounds/collect.wav");
         portal = loadSound("sounds/portal.wav");
         alert = loadSound("sounds/alerta.wav");
     }
@@ -44,16 +46,20 @@ public class AudioManager {
         if (click != null) click.play(0.65f);
     }
 
+    public void playStep() {
+        if (step != null) step.play(0.40f);
+    }
+
     public void playCollect() {
-        if (collect != null) collect.play(0.7f);
+        if (collect != null) collect.play(0.70f);
     }
 
     public void playPortal() {
-        if (portal != null) portal.play(0.8f);
+        if (portal != null) portal.play(0.80f);
     }
 
     public void playAlert() {
-        if (alert != null) alert.play(0.7f);
+        if (alert != null) alert.play(0.70f);
     }
 
     public void playMusic(String path, float volume) {
@@ -61,6 +67,7 @@ public class AudioManager {
 
         FileHandle file = Gdx.files.internal(path);
         if (!file.exists()) {
+            Gdx.app.log("AudioManager", "Musica ausente: " + path);
             return;
         }
 
@@ -87,6 +94,7 @@ public class AudioManager {
         stopMusic();
 
         if (click != null) click.dispose();
+        if (step != null) step.dispose();
         if (collect != null) collect.dispose();
         if (portal != null) portal.dispose();
         if (alert != null) alert.dispose();
