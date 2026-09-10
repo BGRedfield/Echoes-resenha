@@ -24,8 +24,8 @@ allprojects {
 
 /**
  * Creates a small, dependency-free audio bank the first time the project is built.
- * The generator intentionally uses untyped Groovy closure parameters because typed
- * double/List closure parameters can trigger a JVM verifier error with newer Gradle.
+ * The generator intentionally avoids fragile Groovy numeric coercions so it works
+ * reliably with the Gradle 9.5.1 runtime used by this project.
  */
 tasks.register('generateAudioAssets') {
   group = 'assets'
@@ -70,20 +70,25 @@ tasks.register('generateAudioAssets') {
 
           if (time >= start && time < start + length) {
             double local = time - start
-            double attack = Math.min(1.0, local / 0.015)
-            double release = Math.min(1.0, (start + length - time) / 0.035)
+            double attack = Math.min(1.0d, local / 0.015d)
+            double release = Math.min(1.0d, (start + length - time) / 0.035d)
             double envelope = Math.min(attack, release)
             double frequency = tone.freq as double
             double gain = tone.gain as double
-            value += Math.sin(2.0 * Math.PI * frequency * local) * gain * envelope
+            value += Math.sin(2.0d * Math.PI * frequency * local) * gain * envelope
           }
         }
 
-        value = Math.max(-0.95, Math.min(0.95, value))
-        int sample = (int) Math.round(value * 32767.0)
+        value = Math.max(-0.95d, Math.min(0.95d, value))
+        int sample = (int) Math.round(value * 32767.0d)
         pcm[i * 2] = (byte) (sample & 0xFF)
         pcm[i * 2 + 1] = (byte) ((sample >>> 8) & 0xFF)
       }
+
+      int bytesPerSample = bitsPerSample.intdiv(8)
+      int blockAlign = channels * bytesPerSample
+      int byteRate = sampleRate * blockAlign
+      int riffSize = 36 + pcm.length
 
       FileOutputStream raw = new FileOutputStream(target)
       try {
@@ -91,7 +96,7 @@ tasks.register('generateAudioAssets') {
         raw.write('I'.bytes)
         raw.write('F'.bytes)
         raw.write('F'.bytes)
-        writeIntLE(raw, 36 + pcm.length)
+        writeIntLE(raw, riffSize)
 
         raw.write('W'.bytes)
         raw.write('A'.bytes)
@@ -106,8 +111,8 @@ tasks.register('generateAudioAssets') {
         writeShortLE(raw, 1)
         writeShortLE(raw, channels)
         writeIntLE(raw, sampleRate)
-        writeIntLE(raw, sampleRate * channels * bitsPerSample / 8)
-        writeShortLE(raw, channels * bitsPerSample / 8)
+        writeIntLE(raw, byteRate)
+        writeShortLE(raw, blockAlign)
         writeShortLE(raw, bitsPerSample)
 
         raw.write('d'.bytes)
@@ -150,24 +155,24 @@ tasks.register('generateAudioAssets') {
       }
 
       double baseGain = baseGainValue as double
-      double noteLength = 1.5
+      double noteLength = 1.5d
       def tones = []
 
       notes.eachWithIndex { midiValue, index ->
         int midi = midiValue as int
-        double frequency = 440.0 * Math.pow(2.0, (midi - 69) / 12.0)
+        double frequency = 440.0d * Math.pow(2.0d, (midi - 69) / 12.0d)
         double start = index * noteLength
         tones << [start: start, length: noteLength, freq: frequency, gain: baseGain]
-        tones << [start: start, length: noteLength, freq: frequency * 2.0, gain: baseGain * 0.22]
+        tones << [start: start, length: noteLength, freq: frequency * 2.0d, gain: baseGain * 0.22d]
       }
 
-      writeWav(target, 22050, 6.0, tones)
+      writeWav(target, 22050, 6.0d, tones)
     }
 
-    makeMusic(new File(musicDir, 'tema_menu.wav'), [45, 52, 57, 52], 0.08)
-    makeMusic(new File(musicDir, 'tema_lua.wav'), [40, 47, 52, 47], 0.075)
-    makeMusic(new File(musicDir, 'tema_marte.wav'), [36, 43, 48, 43], 0.08)
-    makeMusic(new File(musicDir, 'tema_tita.wav'), [33, 40, 45, 40], 0.085)
+    makeMusic(new File(musicDir, 'tema_menu.wav'), [45, 52, 57, 52], 0.08d)
+    makeMusic(new File(musicDir, 'tema_lua.wav'), [40, 47, 52, 47], 0.075d)
+    makeMusic(new File(musicDir, 'tema_marte.wav'), [36, 43, 48, 43], 0.08d)
+    makeMusic(new File(musicDir, 'tema_tita.wav'), [33, 40, 45, 40], 0.085d)
   }
 }
 
