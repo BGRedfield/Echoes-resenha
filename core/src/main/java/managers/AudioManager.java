@@ -8,12 +8,10 @@ import com.badlogic.gdx.utils.GdxRuntimeException;
 
 /**
  * Centraliza os efeitos e a trilha do ECHOES.
- * Os efeitos podem ser tocados individualmente ou em loop.
  */
 public class AudioManager {
 
     private Music currentMusic;
-
     private Sound click;
     private Sound collect;
     private Sound portal;
@@ -23,10 +21,15 @@ public class AudioManager {
     private long alertLoopId = -1L;
 
     public void load() {
-        click = loadSound("sounds/clique.wav");
+        click = loadSound("sounds/clique.wav", "sounds/click.wav");
         collect = loadSound("sounds/collect.wav");
         portal = loadSound("sounds/portal.wav");
         alert = loadSound("sounds/alerta.wav");
+    }
+
+    private Sound loadSound(String primary, String fallback) {
+        Sound result = loadSound(primary);
+        return result != null ? result : loadSound(fallback);
     }
 
     private Sound loadSound(String path) {
@@ -35,40 +38,35 @@ public class AudioManager {
             Gdx.app.log("AudioManager", "SFX ausente: " + path);
             return null;
         }
-
         try {
-            return Gdx.audio.newSound(file);
-        } catch (GdxRuntimeException e) {
-            Gdx.app.log("AudioManager", "SFX invalido ignorado: " + path);
+            Sound sound = Gdx.audio.newSound(file);
+            Gdx.app.log("AudioManager", "SFX carregado: " + path);
+            return sound;
+        } catch (Throwable e) {
+            Gdx.app.error("AudioManager", "Falha ao carregar SFX: " + path, e);
             return null;
         }
     }
 
     public void playClick() {
-        if (click != null) {
-            click.play(0.70f);
-        }
+        if (click != null) click.play(1.0f);
     }
 
     public void playCollect() {
-        if (collect != null) {
-            collect.play(0.80f);
-        }
+        if (collect != null) collect.play(0.80f);
     }
 
     public void playPortal() {
-        if (portal != null) {
-            portal.play(0.85f);
-        }
+        if (portal != null) portal.play(0.85f);
     }
 
     public void playPortalProximity(float volume) {
-        if (portal == null) {
+        if (portal == null) return;
+        volume = Math.max(0f, Math.min(1f, volume));
+        if (volume <= 0.001f) {
+            stopPortal();
             return;
         }
-
-        volume = Math.max(0f, Math.min(1f, volume));
-
         if (portalLoopId == -1L) {
             portalLoopId = portal.loop(volume);
         } else {
@@ -84,10 +82,7 @@ public class AudioManager {
     }
 
     public void playAlertLoop() {
-        if (alert == null || alertLoopId != -1L) {
-            return;
-        }
-
+        if (alert == null || alertLoopId != -1L) return;
         alertLoopId = alert.loop(0.75f);
     }
 
@@ -100,20 +95,18 @@ public class AudioManager {
 
     public void playMusic(String path, float volume) {
         stopMusic();
-
         FileHandle file = Gdx.files.internal(path);
         if (!file.exists()) {
             Gdx.app.log("AudioManager", "Trilha ausente: " + path);
             return;
         }
-
         try {
             currentMusic = Gdx.audio.newMusic(file);
             currentMusic.setLooping(true);
             currentMusic.setVolume(volume);
             currentMusic.play();
-        } catch (GdxRuntimeException e) {
-            Gdx.app.log("AudioManager", "Trilha invalida ignorada: " + path);
+        } catch (Throwable e) {
+            Gdx.app.error("AudioManager", "Falha ao carregar trilha: " + path, e);
             currentMusic = null;
         }
     }
@@ -130,7 +123,6 @@ public class AudioManager {
         stopMusic();
         stopPortal();
         stopAlertLoop();
-
         if (click != null) click.dispose();
         if (collect != null) collect.dispose();
         if (portal != null) portal.dispose();
