@@ -22,167 +22,13 @@ allprojects {
   }
 }
 
-/**
- * Creates a small, dependency-free audio bank the first time the project is built.
- * The generator intentionally avoids fragile Groovy numeric coercions so it works
- * reliably with the Gradle 9.5.1 runtime used by this project.
- */
-tasks.register('generateAudioAssets') {
-  group = 'assets'
-  description = 'Generates the ECHOES SFX and looping phase music files when missing.'
-
-  doLast {
-    File soundsDir = new File(rootProject.projectDir, 'assets/sounds')
-    File musicDir = new File(rootProject.projectDir, 'assets/music')
-    soundsDir.mkdirs()
-    musicDir.mkdirs()
-
-    def writeIntLE = { out, int value ->
-      out.write(value & 0xFF)
-      out.write((value >>> 8) & 0xFF)
-      out.write((value >>> 16) & 0xFF)
-      out.write((value >>> 24) & 0xFF)
-    }
-
-    def writeShortLE = { out, int value ->
-      out.write(value & 0xFF)
-      out.write((value >>> 8) & 0xFF)
-    }
-
-    def writeWav = { File target, int sampleRate, durationValue, tones ->
-      if (target.exists()) {
-        return
-      }
-
-      int channels = 1
-      int bitsPerSample = 16
-      double duration = durationValue as double
-      int samples = (int) Math.ceil(sampleRate * duration)
-      byte[] pcm = new byte[samples * 2]
-
-      for (int i = 0; i < samples; i++) {
-        double time = i / (double) sampleRate
-        double value = 0.0
-
-        for (def tone : tones) {
-          double start = tone.start as double
-          double length = tone.length as double
-
-          if (time >= start && time < start + length) {
-            double local = time - start
-            double attack = Math.min(1.0d, local / 0.015d)
-            double release = Math.min(1.0d, (start + length - time) / 0.035d)
-            double envelope = Math.min(attack, release)
-            double frequency = tone.freq as double
-            double gain = tone.gain as double
-            value += Math.sin(2.0d * Math.PI * frequency * local) * gain * envelope
-          }
-        }
-
-        value = Math.max(-0.95d, Math.min(0.95d, value))
-        int sample = (int) Math.round(value * 32767.0d)
-        pcm[i * 2] = (byte) (sample & 0xFF)
-        pcm[i * 2 + 1] = (byte) ((sample >>> 8) & 0xFF)
-      }
-
-      int bytesPerSample = bitsPerSample.intdiv(8)
-      int blockAlign = channels * bytesPerSample
-      int byteRate = sampleRate * blockAlign
-      int riffSize = 36 + pcm.length
-
-      FileOutputStream raw = new FileOutputStream(target)
-      try {
-        raw.write('R'.bytes)
-        raw.write('I'.bytes)
-        raw.write('F'.bytes)
-        raw.write('F'.bytes)
-        writeIntLE(raw, riffSize)
-
-        raw.write('W'.bytes)
-        raw.write('A'.bytes)
-        raw.write('V'.bytes)
-        raw.write('E'.bytes)
-
-        raw.write('f'.bytes)
-        raw.write('m'.bytes)
-        raw.write('t'.bytes)
-        raw.write(' '.bytes)
-        writeIntLE(raw, 16)
-        writeShortLE(raw, 1)
-        writeShortLE(raw, channels)
-        writeIntLE(raw, sampleRate)
-        writeIntLE(raw, byteRate)
-        writeShortLE(raw, blockAlign)
-        writeShortLE(raw, bitsPerSample)
-
-        raw.write('d'.bytes)
-        raw.write('a'.bytes)
-        raw.write('t'.bytes)
-        raw.write('a'.bytes)
-        writeIntLE(raw, pcm.length)
-        raw.write(pcm)
-      } finally {
-        raw.close()
-      }
-    }
-
-    // Short SFX: UI, movement, collection, portal and O2 alert.
-    writeWav(new File(soundsDir, 'click.wav'), 16000, 0.09, [
-      [start: 0.00, length: 0.09, freq: 880, gain: 0.35]
-    ])
-    writeWav(new File(soundsDir, 'step.wav'), 16000, 0.08, [
-      [start: 0.00, length: 0.08, freq: 150, gain: 0.28]
-    ])
-    writeWav(new File(soundsDir, 'collect.wav'), 16000, 0.18, [
-      [start: 0.00, length: 0.08, freq: 660, gain: 0.30],
-      [start: 0.08, length: 0.10, freq: 990, gain: 0.32]
-    ])
-    writeWav(new File(soundsDir, 'portal.wav'), 16000, 0.42, [
-      [start: 0.00, length: 0.12, freq: 220, gain: 0.30],
-      [start: 0.12, length: 0.14, freq: 330, gain: 0.30],
-      [start: 0.26, length: 0.16, freq: 550, gain: 0.34]
-    ])
-    writeWav(new File(soundsDir, 'alerta.wav'), 16000, 0.48, [
-      [start: 0.00, length: 0.12, freq: 740, gain: 0.30],
-      [start: 0.16, length: 0.12, freq: 520, gain: 0.30],
-      [start: 0.32, length: 0.12, freq: 740, gain: 0.30]
-    ])
-
-    // Six-second loopable beds. Each phase gets a distinct harmonic identity.
-    def makeMusic = { File target, notes, baseGainValue ->
-      if (target.exists()) {
-        return
-      }
-
-      double baseGain = baseGainValue as double
-      double noteLength = 1.5d
-      def tones = []
-
-      notes.eachWithIndex { midiValue, index ->
-        int midi = midiValue as int
-        double frequency = 440.0d * Math.pow(2.0d, (midi - 69) / 12.0d)
-        double start = index * noteLength
-        tones << [start: start, length: noteLength, freq: frequency, gain: baseGain]
-        tones << [start: start, length: noteLength, freq: frequency * 2.0d, gain: baseGain * 0.22d]
-      }
-
-      writeWav(target, 22050, 6.0d, tones)
-    }
-
-    makeMusic(new File(musicDir, 'tema_menu.wav'), [45, 52, 57, 52], 0.08d)
-    makeMusic(new File(musicDir, 'tema_lua.wav'), [40, 47, 52, 47], 0.075d)
-    makeMusic(new File(musicDir, 'tema_marte.wav'), [36, 43, 48, 43], 0.08d)
-    makeMusic(new File(musicDir, 'tema_tita.wav'), [33, 40, 45, 40], 0.085d)
-  }
-}
-
 configure(subprojects) {
   apply plugin: 'java-library'
   java.sourceCompatibility = 11
 
   tasks.register('generateAssetList') {
-    dependsOn rootProject.tasks.named('generateAudioAssets')
     inputs.dir("${project.rootDir}/assets/")
+
     File assetsFolder = new File("${project.rootDir}/assets/")
     File assetsFile = new File(assetsFolder, "assets.txt")
     assetsFile.delete()
@@ -202,6 +48,7 @@ configure(subprojects) {
 subprojects {
   version = "$projectVersion"
   ext.appName = 'EchoesMars'
+
   repositories {
     mavenCentral()
     mavenLocal()
