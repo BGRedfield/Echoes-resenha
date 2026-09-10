@@ -32,6 +32,8 @@ public class EchoesMarsGame extends Game {
         audio = new AudioManager();
         audio.load();
 
+        // Opening cue: the first impression already has sound.
+        audio.playClick();
         setScreen(new IntroScreen(this, batch, assets));
     }
 
