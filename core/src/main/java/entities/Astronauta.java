@@ -1,7 +1,6 @@
 package entities;
 
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
@@ -17,7 +16,7 @@ public class Astronauta extends Entidade implements Interagível {
     private float energia = 100f;
     private float speed = 180f;
     private final Sprite sprite;
-    private boolean protegido = false; //Protegido pelo abrigo
+    private boolean protegido = false;
     private boolean viradoEsquerda = false;
     private float tempoVivo = 0f;
 
@@ -30,27 +29,25 @@ public class Astronauta extends Entidade implements Interagível {
         super(x, y, 48f, 64f);
         this.physicsWorld = physicsWorld;
 
-        //Textura
         Texture texture = new Texture(Gdx.files.internal("textures/astronauta.png"));
         sprite = new Sprite(texture);
         sprite.setSize(width, height);
-        sprite.setPosition(x,y);
+        sprite.setPosition(x, y);
 
-        //posicao e bounds
-        position.set(x,y);
-        bounds.set(x,y,width,height);
+        position.set(x, y);
+        bounds.set(x, y, width, height);
         ativo = true;
 
         body = physicsWorld.createDynamicBody(
             x + width / 2f,
-            y + height / 2,
+            y + height / 2f,
             width,
             height,
             "ASTRONAUTA"
         );
     }
 
-    public void move(float dirX, float dirY, float delta){
+    public void move(float dirX, float dirY, float delta) {
         if (!ativo || body == null) return;
 
         if (dirX < 0) viradoEsquerda = true;
@@ -60,7 +57,6 @@ public class Astronauta extends Entidade implements Interagível {
 
         float velocityX = dirX * speed / PhysicsWorld.PPM;
         float velocityY = dirY * speed / PhysicsWorld.PPM;
-
         body.setLinearVelocity(velocityX, velocityY);
 
         Vector2 bodyPos = body.getPosition();
@@ -84,15 +80,12 @@ public class Astronauta extends Entidade implements Interagível {
     public void update(float delta) {
         if (!ativo) return;
 
-        //Consumo de oxigenio
         if (!protegido) {
             oxigenio -= 4.5f * delta;
         }
 
-        //Tempo vivo
         tempoVivo += delta;
 
-        //limites
         if (oxigenio <= 0) {
             oxigenio = 0;
             ativo = false;
@@ -102,6 +95,7 @@ public class Astronauta extends Entidade implements Interagível {
             ativo = false;
         }
     }
+
     @Override
     public void render(SpriteBatch batch) {
         if (ativo && sprite != null) {
@@ -113,7 +107,7 @@ public class Astronauta extends Entidade implements Interagível {
     public void dispose() {}
 
     public Body getBody() {
-        return  body;
+        return body;
     }
 
     @Override
@@ -121,9 +115,10 @@ public class Astronauta extends Entidade implements Interagível {
         return position;
     }
 
-    public Rectangle getBounds(){
+    public Rectangle getBounds() {
         return bounds;
     }
+
     public boolean isMoving() {
         return velocity.len() > 5f;
     }
@@ -132,10 +127,6 @@ public class Astronauta extends Entidade implements Interagível {
         this.protegido = protegido;
     }
 
-
-
-
-
     @Override
     public void interagir(Entidade outra) {}
 
@@ -143,7 +134,8 @@ public class Astronauta extends Entidade implements Interagível {
     public boolean podeInteragir() {
         return ativo && oxigenio > 15;
     }
-    public float getOxigenio() {return oxigenio;}
+
+    public float getOxigenio() { return oxigenio; }
     public float getEnergia() { return energia; }
     public float getTempoVivo() { return tempoVivo; }
 
@@ -152,12 +144,10 @@ public class Astronauta extends Entidade implements Interagível {
     }
 
     public void energiaRecuperada(float quantidade) {
-        oxigenio = Math.min(100f, energia + quantidade);
+        energia = Math.min(100f, energia + quantidade);
     }
 
     public boolean isMorto() {
         return !ativo;
     }
-
-
 }
