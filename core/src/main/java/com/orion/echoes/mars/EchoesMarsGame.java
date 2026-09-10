@@ -7,6 +7,7 @@ import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 
 import managers.AssetManager;
+import managers.AudioGameplayBridge;
 import managers.AudioManager;
 import screens.GameScreen;
 import screens.IntroScreen;
@@ -20,8 +21,7 @@ public class EchoesMarsGame extends Game {
     private SpriteBatch batch;
     private AssetManager assets;
     private AudioManager audio;
-
-    private float stepTimer = 0f;
+    private AudioGameplayBridge audioBridge;
 
     @Override
     public void create() {
@@ -31,8 +31,9 @@ public class EchoesMarsGame extends Game {
 
         audio = new AudioManager();
         audio.load();
+        audioBridge = new AudioGameplayBridge(audio);
 
-        // Opening cue: the first impression already has sound.
+        // Som de abertura da experiência.
         audio.playClick();
         setScreen(new IntroScreen(this, batch, assets));
     }
@@ -42,7 +43,10 @@ public class EchoesMarsGame extends Game {
         Screen previous = getScreen();
 
         if (audio != null) {
+            // Toda troca de Screen encerra a trilha anterior antes de iniciar a próxima.
             audio.stopMusic();
+            audio.stopPortal();
+            audio.stopAlertLoop();
 
             if (previous != null && isPortalTransition(previous, screen)) {
                 audio.playPortal();
@@ -62,6 +66,10 @@ public class EchoesMarsGame extends Game {
     }
 
     private void startMusicFor(Screen screen) {
+        if (audio == null) {
+            return;
+        }
+
         if (screen instanceof MenuScreen || screen instanceof MissionScreen) {
             audio.playMusic("music/tema_menu.wav", 0.22f);
         } else if (screen instanceof LunarScreen) {
@@ -75,59 +83,43 @@ public class EchoesMarsGame extends Game {
 
     @Override
     public void render() {
-        handleGlobalSfx(Gdx.graphics.getDeltaTime());
+        handleGlobalSfx();
+
+        if (audioBridge != null) {
+            audioBridge.update(getScreen());
+        }
+
         super.render();
     }
 
-    private void handleGlobalSfx(float delta) {
+    private void handleGlobalSfx() {
         if (audio == null || getScreen() == null) {
             return;
         }
 
-        if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER)
+        // UI: clique de mouse e Enter/C/E produzem o mesmo feedback.
+        if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)
+            || Gdx.input.isKeyJustPressed(Input.Keys.ENTER)
             || Gdx.input.isKeyJustPressed(Input.Keys.C)
             || Gdx.input.isKeyJustPressed(Input.Keys.E)) {
             audio.playClick();
         }
-
-        if (isGameplayScreen()) {
-            boolean moving = Gdx.input.isKeyPressed(Input.Keys.W)
-                || Gdx.input.isKeyPressed(Input.Keys.A)
-                || Gdx.input.isKeyPressed(Input.Keys.S)
-                || Gdx.input.isKeyPressed(Input.Keys.D)
-                || Gdx.input.isKeyPressed(Input.Keys.UP)
-                || Gdx.input.isKeyPressed(Input.Keys.DOWN)
-                || Gdx.input.isKeyPressed(Input.Keys.LEFT)
-                || Gdx.input.isKeyPressed(Input.Keys.RIGHT);
-
-            if (moving) {
-                stepTimer -= delta;
-                if (stepTimer <= 0f) {
-                    audio.playStep();
-                    stepTimer = 0.45f;
-                }
-            } else {
-                stepTimer = 0f;
-            }
-
-            if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) {
-                audio.playAlert();
-            }
-        }
-    }
-
-    private boolean isGameplayScreen() {
-        return getScreen() instanceof LunarScreen
-            || getScreen() instanceof GameScreen
-            || getScreen() instanceof TitanScreen;
     }
 
     @Override
     public void dispose() {
-        if (screen != null) screen.dispose();
-        if (audio != null) audio.dispose();
-        if (batch != null) batch.dispose();
-        if (assets != null) assets.dispose();
+        if (screen != null) {
+            screen.dispose();
+        }
+        if (audio != null) {
+            audio.dispose();
+        }
+        if (batch != null) {
+            batch.dispose();
+        }
+        if (assets != null) {
+            assets.dispose();
+        }
         super.dispose();
     }
 
