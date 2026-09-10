@@ -7,8 +7,6 @@ buildscript {
     maven { url = 'https://central.sonatype.com/repository/maven-snapshots/' }
   }
   dependencies {
-
-
   }
 }
 
@@ -16,7 +14,6 @@ allprojects {
   apply plugin: 'eclipse'
   apply plugin: 'idea'
 
-  // This allows you to "Build and run using IntelliJ IDEA", an option in IDEA's Settings.
   idea {
     module {
       outputDir = file('build/classes/java/main')
@@ -27,8 +24,8 @@ allprojects {
 
 /**
  * Creates a small, dependency-free audio bank the first time the project is built.
- * The activity requires real SFX and background music files. Keeping the generator
- * here makes the project reproducible on any machine without committing binary audio.
+ * The generator intentionally uses untyped Groovy closure parameters because typed
+ * double/List closure parameters can trigger a JVM verifier error with newer Gradle.
  */
 tasks.register('generateAudioAssets') {
   group = 'assets'
@@ -52,29 +49,33 @@ tasks.register('generateAudioAssets') {
       out.write((value >>> 8) & 0xFF)
     }
 
-    def writeWav = { File target, int sampleRate, double duration, List<Map> tones ->
-      if (target.exists()) return
+    def writeWav = { File target, int sampleRate, durationValue, tones ->
+      if (target.exists()) {
+        return
+      }
 
       int channels = 1
       int bitsPerSample = 16
+      double duration = durationValue as double
       int samples = (int) Math.ceil(sampleRate * duration)
       byte[] pcm = new byte[samples * 2]
 
       for (int i = 0; i < samples; i++) {
-        double t = i / (double) sampleRate
+        double time = i / (double) sampleRate
         double value = 0.0
 
-        tones.each { tone ->
+        for (def tone : tones) {
           double start = tone.start as double
           double length = tone.length as double
-          if (t >= start && t < start + length) {
-            double local = t - start
+
+          if (time >= start && time < start + length) {
+            double local = time - start
             double attack = Math.min(1.0, local / 0.015)
-            double release = Math.min(1.0, (start + length - t) / 0.035)
+            double release = Math.min(1.0, (start + length - time) / 0.035)
             double envelope = Math.min(attack, release)
-            double freq = tone.freq as double
+            double frequency = tone.freq as double
             double gain = tone.gain as double
-            value += Math.sin(2.0 * Math.PI * freq * local) * gain * envelope
+            value += Math.sin(2.0 * Math.PI * frequency * local) * gain * envelope
           }
         }
 
@@ -86,10 +87,21 @@ tasks.register('generateAudioAssets') {
 
       FileOutputStream raw = new FileOutputStream(target)
       try {
-        raw.write('R'.bytes); raw.write('I'.bytes); raw.write('F'.bytes); raw.write('F'.bytes)
+        raw.write('R'.bytes)
+        raw.write('I'.bytes)
+        raw.write('F'.bytes)
+        raw.write('F'.bytes)
         writeIntLE(raw, 36 + pcm.length)
-        raw.write('W'.bytes); raw.write('A'.bytes); raw.write('V'.bytes); raw.write('E'.bytes)
-        raw.write('f'.bytes); raw.write('m'.bytes); raw.write('t'.bytes); raw.write(' '.bytes)
+
+        raw.write('W'.bytes)
+        raw.write('A'.bytes)
+        raw.write('V'.bytes)
+        raw.write('E'.bytes)
+
+        raw.write('f'.bytes)
+        raw.write('m'.bytes)
+        raw.write('t'.bytes)
+        raw.write(' '.bytes)
         writeIntLE(raw, 16)
         writeShortLE(raw, 1)
         writeShortLE(raw, channels)
@@ -97,7 +109,11 @@ tasks.register('generateAudioAssets') {
         writeIntLE(raw, sampleRate * channels * bitsPerSample / 8)
         writeShortLE(raw, channels * bitsPerSample / 8)
         writeShortLE(raw, bitsPerSample)
-        raw.write('d'.bytes); raw.write('a'.bytes); raw.write('t'.bytes); raw.write('a'.bytes)
+
+        raw.write('d'.bytes)
+        raw.write('a'.bytes)
+        raw.write('t'.bytes)
+        raw.write('a'.bytes)
         writeIntLE(raw, pcm.length)
         raw.write(pcm)
       } finally {
@@ -128,16 +144,23 @@ tasks.register('generateAudioAssets') {
     ])
 
     // Six-second loopable beds. Each phase gets a distinct harmonic identity.
-    def makeMusic = { File target, List<Integer> notes, double baseGain ->
-      if (target.exists()) return
-      double noteLength = 1.5
-      List<Map> tones = []
-      notes.eachWithIndex { integerMidi, index ->
-        double freq = 440.0 * Math.pow(2.0, (integerMidi - 69) / 12.0)
-        double start = index * noteLength
-        tones << [start: start, length: noteLength, freq: freq, gain: baseGain]
-        tones << [start: start, length: noteLength, freq: freq * 2.0, gain: baseGain * 0.22]
+    def makeMusic = { File target, notes, baseGainValue ->
+      if (target.exists()) {
+        return
       }
+
+      double baseGain = baseGainValue as double
+      double noteLength = 1.5
+      def tones = []
+
+      notes.eachWithIndex { midiValue, index ->
+        int midi = midiValue as int
+        double frequency = 440.0 * Math.pow(2.0, (midi - 69) / 12.0)
+        double start = index * noteLength
+        tones << [start: start, length: noteLength, freq: frequency, gain: baseGain]
+        tones << [start: start, length: noteLength, freq: frequency * 2.0, gain: baseGain * 0.22]
+      }
+
       writeWav(target, 22050, 6.0, tones)
     }
 
@@ -152,25 +175,18 @@ configure(subprojects) {
   apply plugin: 'java-library'
   java.sourceCompatibility = 11
 
-  // From https://lyze.dev/2021/04/29/libGDX-Internal-Assets-List/
-  // The article can be helpful when using assets.txt in your project.
   tasks.register('generateAssetList') {
     dependsOn rootProject.tasks.named('generateAudioAssets')
     inputs.dir("${project.rootDir}/assets/")
-    // projectFolder/assets
     File assetsFolder = new File("${project.rootDir}/assets/")
-    // projectFolder/assets/assets.txt
     File assetsFile = new File(assetsFolder, "assets.txt")
-    // delete that file in case we've already created it
     assetsFile.delete()
 
-    // iterate through all files inside that folder
-    // convert it to a relative path
-    // and append it to the file assets.txt
     fileTree(assetsFolder).collect { assetsFolder.relativePath(it) }.sort().each {
       assetsFile.append(it + "\n")
     }
   }
+
   processResources.dependsOn 'generateAssetList'
 
   compileJava {
@@ -183,11 +199,10 @@ subprojects {
   ext.appName = 'EchoesMars'
   repositories {
     mavenCentral()
-    // You may want to remove the following line if you have errors downloading dependencies.
     mavenLocal()
     maven { url = 'https://central.sonatype.com/repository/maven-snapshots/' }
     maven { url = 'https://jitpack.io' }
   }
 }
 
-eclipse.project.name = 'EchoesMars' + '-parent'
+eclipse.project.name = 'EchoesMars-parent'
