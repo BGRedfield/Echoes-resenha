@@ -4,11 +4,11 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.files.FileHandle;
+import com.badlogic.gdx.utils.GdxRuntimeException;
 
 /**
  * Audio centralizado do ECHOES.
- * Cada Screen pode trocar a musica sem deixar a anterior tocando.
- * Os arquivos sao opcionais: se ainda nao existirem, o jogo continua sem crash.
+ * Arquivos de audio ausentes ou invalidos nao derrubam o jogo.
  */
 public class AudioManager {
 
@@ -28,8 +28,16 @@ public class AudioManager {
 
     private Sound loadSound(String path) {
         FileHandle file = Gdx.files.internal(path);
-        if (!file.exists()) return null;
-        return Gdx.audio.newSound(file);
+        if (!file.exists()) {
+            return null;
+        }
+
+        try {
+            return Gdx.audio.newSound(file);
+        } catch (GdxRuntimeException e) {
+            Gdx.app.log("AudioManager", "Audio invalido ignorado: " + path);
+            return null;
+        }
     }
 
     public void playClick() {
@@ -52,12 +60,19 @@ public class AudioManager {
         stopMusic();
 
         FileHandle file = Gdx.files.internal(path);
-        if (!file.exists()) return;
+        if (!file.exists()) {
+            return;
+        }
 
-        currentMusic = Gdx.audio.newMusic(file);
-        currentMusic.setLooping(true);
-        currentMusic.setVolume(volume);
-        currentMusic.play();
+        try {
+            currentMusic = Gdx.audio.newMusic(file);
+            currentMusic.setLooping(true);
+            currentMusic.setVolume(volume);
+            currentMusic.play();
+        } catch (GdxRuntimeException e) {
+            Gdx.app.log("AudioManager", "Musica invalida ignorada: " + path);
+            currentMusic = null;
+        }
     }
 
     public void stopMusic() {
