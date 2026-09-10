@@ -67,24 +67,32 @@ public class MenuScreen implements Screen {
         font.setColor(0.55f, 0.62f, 0.72f, 1f);
         font.getData().setScale(1f);
         font.draw(batch, "[ ESC ] SAIR", 560, 100);
-        font.getData().setScale(1f);
         batch.end();
 
         handleInput();
     }
 
+    private void click() {
+        if (game.getAudio() != null) {
+            game.getAudio().playClick();
+        }
+    }
+
     private void handleInput() {
         if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) {
+            click();
             game.setScreen(new MissionScreen(game, batch, assets));
             return;
         }
 
         if (saveManager.hasSave() && Gdx.input.isKeyJustPressed(Input.Keys.C)) {
+            click();
             openSavedPhase();
             return;
         }
 
         if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+            click();
             Gdx.app.exit();
             return;
         }
@@ -95,10 +103,13 @@ public class MenuScreen implements Screen {
                 * (720f / Gdx.graphics.getHeight());
 
             if (newMissionButton.contains(x, y)) {
+                click();
                 game.setScreen(new MissionScreen(game, batch, assets));
             } else if (saveManager.hasSave() && continueButton.contains(x, y)) {
+                click();
                 openSavedPhase();
             } else if (exitButton.contains(x, y)) {
+                click();
                 Gdx.app.exit();
             }
         }
