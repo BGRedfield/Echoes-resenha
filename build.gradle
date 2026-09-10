@@ -25,6 +25,129 @@ allprojects {
   }
 }
 
+/**
+ * Creates a small, dependency-free audio bank the first time the project is built.
+ * The activity requires real SFX and background music files. Keeping the generator
+ * here makes the project reproducible on any machine without committing binary audio.
+ */
+tasks.register('generateAudioAssets') {
+  group = 'assets'
+  description = 'Generates the ECHOES SFX and looping phase music files when missing.'
+
+  doLast {
+    File soundsDir = new File(rootProject.projectDir, 'assets/sounds')
+    File musicDir = new File(rootProject.projectDir, 'assets/music')
+    soundsDir.mkdirs()
+    musicDir.mkdirs()
+
+    def writeIntLE = { out, int value ->
+      out.write(value & 0xFF)
+      out.write((value >>> 8) & 0xFF)
+      out.write((value >>> 16) & 0xFF)
+      out.write((value >>> 24) & 0xFF)
+    }
+
+    def writeShortLE = { out, int value ->
+      out.write(value & 0xFF)
+      out.write((value >>> 8) & 0xFF)
+    }
+
+    def writeWav = { File target, int sampleRate, double duration, List<Map> tones ->
+      if (target.exists()) return
+
+      int channels = 1
+      int bitsPerSample = 16
+      int samples = (int) Math.ceil(sampleRate * duration)
+      byte[] pcm = new byte[samples * 2]
+
+      for (int i = 0; i < samples; i++) {
+        double t = i / (double) sampleRate
+        double value = 0.0
+
+        tones.each { tone ->
+          double start = tone.start as double
+          double length = tone.length as double
+          if (t >= start && t < start + length) {
+            double local = t - start
+            double attack = Math.min(1.0, local / 0.015)
+            double release = Math.min(1.0, (start + length - t) / 0.035)
+            double envelope = Math.min(attack, release)
+            double freq = tone.freq as double
+            double gain = tone.gain as double
+            value += Math.sin(2.0 * Math.PI * freq * local) * gain * envelope
+          }
+        }
+
+        value = Math.max(-0.95, Math.min(0.95, value))
+        int sample = (int) Math.round(value * 32767.0)
+        pcm[i * 2] = (byte) (sample & 0xFF)
+        pcm[i * 2 + 1] = (byte) ((sample >>> 8) & 0xFF)
+      }
+
+      FileOutputStream raw = new FileOutputStream(target)
+      try {
+        raw.write('R'.bytes); raw.write('I'.bytes); raw.write('F'.bytes); raw.write('F'.bytes)
+        writeIntLE(raw, 36 + pcm.length)
+        raw.write('W'.bytes); raw.write('A'.bytes); raw.write('V'.bytes); raw.write('E'.bytes)
+        raw.write('f'.bytes); raw.write('m'.bytes); raw.write('t'.bytes); raw.write(' '.bytes)
+        writeIntLE(raw, 16)
+        writeShortLE(raw, 1)
+        writeShortLE(raw, channels)
+        writeIntLE(raw, sampleRate)
+        writeIntLE(raw, sampleRate * channels * bitsPerSample / 8)
+        writeShortLE(raw, channels * bitsPerSample / 8)
+        writeShortLE(raw, bitsPerSample)
+        raw.write('d'.bytes); raw.write('a'.bytes); raw.write('t'.bytes); raw.write('a'.bytes)
+        writeIntLE(raw, pcm.length)
+        raw.write(pcm)
+      } finally {
+        raw.close()
+      }
+    }
+
+    // Short SFX: UI, movement, collection, portal and O2 alert.
+    writeWav(new File(soundsDir, 'click.wav'), 16000, 0.09, [
+      [start: 0.00, length: 0.09, freq: 880, gain: 0.35]
+    ])
+    writeWav(new File(soundsDir, 'step.wav'), 16000, 0.08, [
+      [start: 0.00, length: 0.08, freq: 150, gain: 0.28]
+    ])
+    writeWav(new File(soundsDir, 'collect.wav'), 16000, 0.18, [
+      [start: 0.00, length: 0.08, freq: 660, gain: 0.30],
+      [start: 0.08, length: 0.10, freq: 990, gain: 0.32]
+    ])
+    writeWav(new File(soundsDir, 'portal.wav'), 16000, 0.42, [
+      [start: 0.00, length: 0.12, freq: 220, gain: 0.30],
+      [start: 0.12, length: 0.14, freq: 330, gain: 0.30],
+      [start: 0.26, length: 0.16, freq: 550, gain: 0.34]
+    ])
+    writeWav(new File(soundsDir, 'alerta.wav'), 16000, 0.48, [
+      [start: 0.00, length: 0.12, freq: 740, gain: 0.30],
+      [start: 0.16, length: 0.12, freq: 520, gain: 0.30],
+      [start: 0.32, length: 0.12, freq: 740, gain: 0.30]
+    ])
+
+    // Six-second loopable beds. Each phase gets a distinct harmonic identity.
+    def makeMusic = { File target, List<Integer> notes, double baseGain ->
+      if (target.exists()) return
+      double noteLength = 1.5
+      List<Map> tones = []
+      notes.eachWithIndex { integerMidi, index ->
+        double freq = 440.0 * Math.pow(2.0, (integerMidi - 69) / 12.0)
+        double start = index * noteLength
+        tones << [start: start, length: noteLength, freq: freq, gain: baseGain]
+        tones << [start: start, length: noteLength, freq: freq * 2.0, gain: baseGain * 0.22]
+      }
+      writeWav(target, 22050, 6.0, tones)
+    }
+
+    makeMusic(new File(musicDir, 'tema_menu.wav'), [45, 52, 57, 52], 0.08)
+    makeMusic(new File(musicDir, 'tema_lua.wav'), [40, 47, 52, 47], 0.075)
+    makeMusic(new File(musicDir, 'tema_marte.wav'), [36, 43, 48, 43], 0.08)
+    makeMusic(new File(musicDir, 'tema_tita.wav'), [33, 40, 45, 40], 0.085)
+  }
+}
+
 configure(subprojects) {
   apply plugin: 'java-library'
   java.sourceCompatibility = 11
@@ -47,6 +170,7 @@ configure(subprojects) {
       assetsFile.append(it + "\n")
     }
   }
+  processResources.dependsOn 'generateAudioAssets'
   processResources.dependsOn 'generateAssetList'
 
   compileJava {
