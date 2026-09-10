@@ -8,53 +8,100 @@ import com.badlogic.gdx.utils.Disposable;
 
 public class AssetManager implements Disposable {
 
-    //textures
+    // =========================================================
+    // TEXTURAS
+    // =========================================================
+
     public Texture astronautaTexture;
     public Texture oxigenioTexture;
     public Texture comidaTexture;
     public Texture abrigoTexture;
     public Texture backgroundTexture;
 
-    //Sprite prontos
+    // =========================================================
+    // SPRITES COM ESCALA DE JOGO
+    // =========================================================
+
     public Sprite astronautaSprite;
     public Sprite oxigenioSprite;
     public Sprite comidaSprite;
     public Sprite abrigoSprite;
 
-    //Font
+    // =========================================================
+    // FONTE
+    // =========================================================
+
     public BitmapFont font;
 
     public void load() {
-        //carrega todas as texturas
-        astronautaTexture = new Texture(Gdx.files.internal("textures/astronauta.png"));
-        oxigenioTexture = new Texture(Gdx.files.internal("textures/oxigenio.png"));
-        comidaTexture = new Texture(Gdx.files.internal("textures/comida.png"));
-        abrigoTexture = new Texture(Gdx.files.internal("textures/abrigo.png"));
-        backgroundTexture = new Texture(Gdx.files.internal("textures/marte_background.png"));
 
-        //Configura filtros (melhor qualidade)
-        astronautaTexture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
-        oxigenioTexture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
-        comidaTexture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
-        abrigoTexture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
-        backgroundTexture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+        // Carrega as texturas usadas pelo projeto.
+        astronautaTexture = new Texture(
+            Gdx.files.internal("textures/astronauta.png")
+        );
 
-        //Cria Sprites
+        oxigenioTexture = new Texture(
+            Gdx.files.internal("textures/oxigenio.png")
+        );
+
+        comidaTexture = new Texture(
+            Gdx.files.internal("textures/comida.png")
+        );
+
+        abrigoTexture = new Texture(
+            Gdx.files.internal("textures/abrigo.png")
+        );
+
+        backgroundTexture = new Texture(
+            Gdx.files.internal("textures/marte_background.png")
+        );
+
+        // Filtro linear evita serrilhado quando os assets
+        // são desenhados na escala do jogo.
+        astronautaTexture.setFilter(
+            Texture.TextureFilter.Linear,
+            Texture.TextureFilter.Linear
+        );
+
+        oxigenioTexture.setFilter(
+            Texture.TextureFilter.Linear,
+            Texture.TextureFilter.Linear
+        );
+
+        comidaTexture.setFilter(
+            Texture.TextureFilter.Linear,
+            Texture.TextureFilter.Linear
+        );
+
+        abrigoTexture.setFilter(
+            Texture.TextureFilter.Linear,
+            Texture.TextureFilter.Linear
+        );
+
+        backgroundTexture.setFilter(
+            Texture.TextureFilter.Linear,
+            Texture.TextureFilter.Linear
+        );
+
+        // Escala visual consistente com o astronauta das fases.
         astronautaSprite = new Sprite(astronautaTexture);
-        astronautaSprite.setSize(32,48);
+        astronautaSprite.setSize(54f, 54f);
 
+        // Itens menores que o jogador, mas ainda legíveis.
         oxigenioSprite = new Sprite(oxigenioTexture);
-        oxigenioSprite.setSize(32,48);
+        oxigenioSprite.setSize(48f, 48f);
 
         comidaSprite = new Sprite(comidaTexture);
-        comidaSprite.setSize(40,40);
+        comidaSprite.setSize(48f, 48f);
 
+        // Abrigo em escala próxima ao personagem,
+        // evitando ocupar uma área exagerada da fase.
         abrigoSprite = new Sprite(abrigoTexture);
-        abrigoSprite.setSize(320,220); // Tamanho grande e proporcional
+        abrigoSprite.setSize(220f, 130f);
 
-        //Fonte
+        // HUD legível.
         font = new BitmapFont();
-        font.setColor(1,1,1,1);
+        font.setColor(1f, 1f, 1f, 1f);
         font.getData().setScale(1.6f);
     }
 
