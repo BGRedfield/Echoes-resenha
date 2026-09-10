@@ -33,7 +33,6 @@ public class EchoesMarsGame extends Game {
         audio.load();
         audioBridge = new AudioGameplayBridge(audio);
 
-        // Som de abertura da experiência.
         audio.playClick();
         setScreen(new IntroScreen(this, batch, assets));
     }
@@ -43,15 +42,12 @@ public class EchoesMarsGame extends Game {
         Screen previous = getScreen();
 
         if (audio != null) {
-            // Toda troca de Screen encerra a trilha anterior antes de iniciar a próxima.
             audio.stopMusic();
             audio.stopPortal();
             audio.stopAlertLoop();
 
             if (previous != null && isPortalTransition(previous, screen)) {
                 audio.playPortal();
-            } else if (previous != null) {
-                audio.playClick();
             }
 
             startMusicFor(screen);
@@ -97,7 +93,7 @@ public class EchoesMarsGame extends Game {
             return;
         }
 
-        // UI: clique de mouse e Enter/C/E produzem o mesmo feedback.
+        // Feedback de UI: clique do mouse, Enter, C ou E.
         if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)
             || Gdx.input.isKeyJustPressed(Input.Keys.ENTER)
             || Gdx.input.isKeyJustPressed(Input.Keys.C)
