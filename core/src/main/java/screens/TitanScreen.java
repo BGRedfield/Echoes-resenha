@@ -153,6 +153,29 @@ public class TitanScreen implements Screen {
     private int water = 0;
     private int fuel = 0;
 
+    // Recursos de Tita: ficam fora da boss fight.
+    private final Rectangle oxygenPickup =
+        new Rectangle(
+            520f,
+            700f,
+            48f,
+            48f
+        );
+
+    private final Rectangle foodPickup =
+        new Rectangle(
+            1500f,
+            300f,
+            48f,
+            48f
+        );
+
+    private boolean oxygenPickupActive = true;
+    private boolean foodPickupActive = true;
+
+    private static final float OXYGEN_PICKUP_AMOUNT = 35f;
+    private static final float FOOD_ENERGY_AMOUNT = 35f;
+
     // =========================================================
     // GAME
     // =========================================================
@@ -416,6 +439,7 @@ public class TitanScreen implements Screen {
 
         updatePlayer(delta);
         updateOxygen(delta);
+        updateResourcePickups();
         updateAliens(delta);
         updateCombat(delta);
         updateBossAttack(delta);
@@ -546,9 +570,22 @@ public class TitanScreen implements Screen {
     // O2
     // =========================================================
 
+    private boolean isBossFightActive() {
+
+        return
+            alienAlive[BOSS_INDEX]
+                &&
+                !bossDefeated;
+    }
+
     private void updateOxygen(
         float delta
     ) {
+
+        // Durante a boss fight o O2 não diminui.
+        if (isBossFightActive()) {
+            return;
+        }
 
         oxygen =
             Math.max(
@@ -557,6 +594,58 @@ public class TitanScreen implements Screen {
                     delta *
                         0.65f
             );
+    }
+
+    private void updateResourcePickups() {
+
+        // Recursos ficam indisponíveis durante a boss fight.
+        if (isBossFightActive()) {
+            return;
+        }
+
+        if (
+            oxygenPickupActive
+                &&
+                player.overlaps(
+                    oxygenPickup
+                )
+        ) {
+
+            oxygen =
+                Math.min(
+                    100f,
+                    oxygen +
+                        OXYGEN_PICKUP_AMOUNT
+                );
+
+            oxygenPickupActive = false;
+
+            showMessage(
+                "O2 COLETADO! +35"
+            );
+        }
+
+        if (
+            foodPickupActive
+                &&
+                player.overlaps(
+                    foodPickup
+                )
+        ) {
+
+            energy =
+                Math.min(
+                    100f,
+                    energy +
+                        FOOD_ENERGY_AMOUNT
+                );
+
+            foodPickupActive = false;
+
+            showMessage(
+                "COMIDA COLETADA! +35 ENERGIA"
+            );
+        }
     }
 
     // =========================================================
@@ -624,12 +713,15 @@ public class TitanScreen implements Screen {
                 )
             ) {
 
-                oxygen =
-                    Math.max(
-                        0f,
-                        oxygen -
-                            delta * 15f
-                    );
+                if (!isBossFightActive()) {
+
+                    oxygen =
+                        Math.max(
+                            0f,
+                            oxygen -
+                                delta * 15f
+                        );
+                }
 
                 energy =
                     Math.max(
@@ -1102,12 +1194,15 @@ public class TitanScreen implements Screen {
                 )
             ) {
 
-                oxygen =
-                    Math.max(
-                        0f,
-                        oxygen -
-                            BOSS_DAMAGE
-                    );
+                if (!isBossFightActive()) {
+
+                    oxygen =
+                        Math.max(
+                            0f,
+                            oxygen -
+                                BOSS_DAMAGE
+                        );
+                }
 
                 energy =
                     Math.max(
@@ -1336,6 +1431,39 @@ public class TitanScreen implements Screen {
                     y,
                     512,
                     512
+                );
+            }
+        }
+
+        batch.setColor(
+            Color.WHITE
+        );
+
+        // =====================================================
+        // RECURSOS FORA DA BOSS FIGHT
+        // =====================================================
+
+        if (!isBossFightActive()) {
+
+            if (oxygenPickupActive) {
+
+                batch.draw(
+                    assets.oxigenioTexture,
+                    oxygenPickup.x,
+                    oxygenPickup.y,
+                    oxygenPickup.width,
+                    oxygenPickup.height
+                );
+            }
+
+            if (foodPickupActive) {
+
+                batch.draw(
+                    assets.comidaTexture,
+                    foodPickup.x,
+                    foodPickup.y,
+                    foodPickup.width,
+                    foodPickup.height
                 );
             }
         }
